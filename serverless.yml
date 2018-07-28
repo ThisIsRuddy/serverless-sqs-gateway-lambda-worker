@@ -1,0 +1,67 @@
+service: serverless-sqs-gateway-lambda-worker
+
+package:
+  individually: true
+
+plugins:
+  - serverless-webpack
+  - serverless-offline
+
+custom:
+  service: ${self:service}
+  stage: ${self:provider:stage}
+  region: eu-west-2
+  webpack:
+    webpackConfig: ./webpack.config.js
+    webpackIncludeModules:
+      forceExclude:
+        - aws-sdk
+
+provider:
+  name: aws
+  stage: ${opt:stage, 'dev'}
+  runtime: nodejs8.10
+  region: ${self:custom.region}
+
+  iamRoleStatements:
+    - Effect: Allow
+      Action:
+        - sqs:GetQueueAttributes
+        - sqs:ChangeMessageVisibility
+        - sqs:SendMessage
+        - sqs:DeleteMessage
+        - sqs:ReceiveMessage
+      Resource:
+        Fn::GetAtt: [SQSQueue, Arn]
+
+  environment:
+    REGION: ${self:custom.region}
+    SLACK_HOOK: ${file(./env.yml):dev.SLACK_HOOK}
+    SQS_URL:
+      Ref: SQSQueue
+
+resources:
+  Resources:
+    SQSQueue:
+      Type: AWS::SQS::Queue
+      Properties:
+        QueueName: ${self:service}-${self:provider.stage}-queue
+
+functions:
+
+  worker:
+    handler: functions/worker.handler
+    reservedConcurrency: 10
+    events:
+      - sqs:
+        arn:
+          Fn::GetAtt:
+            - SQSQueue
+            - Arn
+
+  send:
+    handler: functions/send.handler
+    events:
+      - http:
+          path: create
+          method: post
