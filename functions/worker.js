@@ -1,3 +1,4 @@
+import async from 'async'
 import {response} from '../includes/response'
 import {notify} from '../includes/notify'
 
@@ -9,22 +10,24 @@ export const handler = async (event, context, callback) => {
     }
 }
 
-const execute = async event => {
-
-    const msg = `Successfully processed queued message: ${event.body}`
-
-    //TODO: Add processing logic
-
-    await notify({text: msg})
-
-    return response(200, {message: msg})
+const msgs = {
+    notify:     `Successfully processed queued message: \n`,
+    success:    `Finished processing batch of messages.`,
+    error:      `The following error occurred when attempting to process a message: \n`
 }
 
-const error = async (event, err) => {
+const execute = async event => {
+    async.map(event.messages || event.Records, async message => {
+        await notify({text: msgs.notify + '```' + message.body + '```'})
+    }, err => {
+        if(err) throw Error(err)
+        return response(200, {message: msgs.success})
+    })
+}
 
-    const msg = `An error occurred when attempting to process a message. \n ${err.message} \n ${event.body}`
-
-    await notify({text: msg})
-
+const error = async err => {
+    const msg = msgs.error + err.message + '\n'
+    console.log(err.message)
+    await notify({text: '```' + msg + '```'})
     return response(500, {message: msg})
 }

@@ -34,6 +34,9 @@ provider:
       Resource:
         Fn::GetAtt: [SQSQueue, Arn]
 
+  apiKeys:
+    - ${self:service}-apikey-${self:provider.stage}
+
   environment:
     REGION: ${self:custom.region}
     SLACK_HOOK: ${file(./env.yml):dev.SLACK_HOOK}
@@ -45,19 +48,9 @@ resources:
     SQSQueue:
       Type: AWS::SQS::Queue
       Properties:
-        QueueName: ${self:service}-${self:provider.stage}-queue
+        QueueName: ${self:service}-queue-${self:provider.stage}
 
 functions:
-
-  worker:
-    handler: functions/worker.handler
-    reservedConcurrency: 10
-    events:
-      - sqs:
-        arn:
-          Fn::GetAtt:
-            - SQSQueue
-            - Arn
 
   send:
     handler: functions/send.handler
@@ -65,3 +58,13 @@ functions:
       - http:
           path: create
           method: post
+          private: true
+          cors: true
+
+  worker:
+    handler: functions/worker.handler
+    reservedConcurrency: 10
+    events:
+      - sqs:
+        arn:
+          Fn::GetAtt: [SQSQueue, Arn]

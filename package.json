@@ -8,6 +8,7 @@
   "author": "Daniel Rudd <thisisruddy@gmail.com",
   "license": "MIT",
   "dependencies": {
+    "async": "^2.6.1",
     "node-slack": "^0.0.7"
   },
   "devDependencies": {
